@@ -4,16 +4,20 @@ import (
 	"bufio"
 	"os"
 	"strings"
+	"regexp"
+	"time"
 
 	"github.com/gocarina/gocsv"
 )
 
 type Submission struct {
-	FirstName          string  `csv:"FirstName"`
-	LastName           string  `csv:"LastName"`
-	Matriculation      string  `csv:"Matriculation"`
+	StudentName        string  `csv:"StudentName"`
+	UUN			       string  `csv:"UUN"`
 	Assignment         string  `csv:"Assignment"`
+	DateSubmittedRaw   string  `csv:"DateSubmittedRaw"`
 	DateSubmitted      string  `csv:"DateSubmitted"`
+	LateSubmission     string  `csv:"LateSubmission"`
+	ExtraTime	       int     `csv:"ExtraTime"`
 	SubmissionField    string  `csv:"SubmissionField"`
 	Comments           string  `csv:"Comments"`
 	OriginalFilename   string  `csv:"OriginalFilename"`
@@ -26,6 +30,11 @@ type Submission struct {
 	NumberOfPages      string  `csv:"NumberOfPages"`
 	FilesizeMB         float64 `csv:"FilesizeMB"`
 	NumberOfFiles      int     `csv:"NumberOfFiles"`
+	OutputFile	       string  `csv:"OutputFile"`
+}
+
+func BlankSubmission() (Submission) {
+	return Submission{}
 }
 
 func ParseLearnReceipt(inputPath string) (Submission, error) {
@@ -71,25 +80,17 @@ SCAN:
 
 	sub.NumberOfFiles = 0
 
-	// we will take the first file as the one we expect to see renamed
-	gotOriginal := false
-	gotNew := false
-
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 
 		switch {
 		case strings.HasPrefix(line, "Original filename:"):
-			if !gotOriginal {
-				processOriginalFilename(line, &sub)
-				gotOriginal = true
-			}
+
+			processOriginalFilename(line, &sub)
 			sub.NumberOfFiles++
 		case strings.HasPrefix(line, "Filename:"):
-			if !gotNew {
-				processFilename(line, &sub)
-				gotNew = true
-			}
+
+			processFilename(line, &sub)
 		default:
 			continue
 		}
@@ -109,9 +110,8 @@ func processName(line string, sub *Submission) {
 	name := strings.TrimSpace(line[m+1 : n])
 	matric := strings.TrimSpace(line[n+1 : p])
 
-	sub.FirstName = "-"
-	sub.LastName = name
-	sub.Matriculation = matric
+	sub.StudentName = name
+	sub.UUN = strings.ToUpper(matric)
 }
 
 //Assignment: Practice Exam Drop Box
@@ -125,7 +125,9 @@ func processAssignment(line string, sub *Submission) {
 func processDateSubmitted(line string, sub *Submission) {
 	line = strings.TrimSpace(line)
 	line = strings.TrimPrefix(line, "Date Submitted:")
-	sub.DateSubmitted = strings.TrimSpace(line)
+	sub.DateSubmittedRaw = strings.TrimSpace(line)
+	sub_time, _ := time.Parse("Monday, _2 January 2006 15:04:05 o'clock MST", sub.DateSubmittedRaw)
+	sub.DateSubmitted = sub_time.Format("2006-01-02-15-04-05")
 }
 
 //Submission Field:
@@ -153,6 +155,11 @@ func processFilename(line string, sub *Submission) {
 	line = strings.TrimSpace(line)
 	line = strings.TrimPrefix(line, "Filename:")
 	sub.Filename = strings.TrimSpace(line)
+	// check if the submitted file has .pdf (or .PDF) extension
+	matched, _ := regexp.MatchString(`(?i)\.pdf$`, sub.Filename)
+	if(!matched) {
+		sub.FiletypeError = "Not PDF"
+	}
 }
 
 func WriteSubmissionsToCSV(subs []Submission, outputPath string) error {
