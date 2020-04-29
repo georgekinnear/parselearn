@@ -22,6 +22,7 @@ type Submission struct {
 	Comments           string  `csv:"Comments"`
 	OriginalFilename   string  `csv:"OriginalFilename"`
 	Filename           string  `csv:"Filename"`
+	ReceiptFilename	   string  `csv:"-"`
 	ExamNumber         string  `csv:"ExamNumber"`
 	MatriculationError string  `csv:"MatriculationError"`
 	ExamNumberError    string  `csv:"ExamNumberError"`
@@ -31,6 +32,7 @@ type Submission struct {
 	FilesizeMB         float64 `csv:"FilesizeMB"`
 	NumberOfFiles      int     `csv:"NumberOfFiles"`
 	OutputFile	       string  `csv:"OutputFile"`
+	ToMark			   string  `csv:"ToMark"`
 }
 
 func BlankSubmission() (Submission) {
